@@ -6,5 +6,5 @@ x	x	x	x	x	-	x	-	x	x	o	x	x	x
 x	-	-	-	-	-	-	-	-	-	-	-	o	x
 x	o	x	-	x	-	x	x	x	x	-	-	-	x
 x	-	o	-	x	-	-	-	-	x	x	x	x	x
-x	x	x	x	x	-	-	-	-	x	x	x	x	x
+x	x	x	x	x	-	h	-	t	x	x	x	x	x
 x	x	x	x	x	x	x	x	x	x	x	x	x	x
