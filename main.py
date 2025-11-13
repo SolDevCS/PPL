@@ -34,6 +34,11 @@ class Game:
             TextButton(980, 620, 100, 50, self.start_simulation, (0, 255, 0), "Start"),
             ToggleButton(680, 670, 400, 50, lambda btn: self.terminal.change_mode(btn.down), (0, 255, 0), ("Script Mode", "Shell Mode"))
         ]
+        self.generate_snake()
+        self.terminal = Terminal(680, 0, 400, 620)
+        self.generate_food()
+    
+    def generate_snake(self):
         head = (0, 2)
         tail = (0, 0)
         for y in range(len(self.map)):
@@ -41,20 +46,18 @@ class Game:
                 head = (self.map[y].index("h"), y)
             if "t" in self.map[y]:
                 tail = (self.map[y].index("t"), y)
-        print(tail, head)
         self.snake = Snake(self.map, tail, head)
         self.direction = {'UP':self.snake.up, "LEFT":self.snake.left, "RIGHT":self.snake.right, "DOWN":self.snake.down}
-        self.terminal = Terminal(680, 0, 400, 620)
-        self.generate_food()
     
     def generate_food(self):
         self.foods.clear()
         for i in range(len(self.map[0])):
             for j in range(len(self.map)):
-                if self.map[j][i] == 'O':
+                if self.map[j][i].upper() == 'O':
                     self.foods.append((i, j))
     
     def start_simulation(self):
+        self.generate_snake()
         self.generate_food()
         self.load_program(self.terminal.text.split("\n"))
         self.execution_thread = Thread(target=self.execute_program, daemon=True)
@@ -62,9 +65,13 @@ class Game:
     
     def next_level(self):
         level = self.level + 1
-        with open(f'lvl{level}.txt', 'r') as f:
-            game_map = [line.rstrip("\n").split("\t") for line in f.readlines()]
-            Game(self.window, game_map, level).loop()
+        try:
+            with open(f'lvl{level}.txt', 'r') as f:
+                game_map = [line.rstrip("\n").split("\t") for line in f.readlines()]
+                Game(self.window, game_map, level).loop()
+        except FileNotFoundError:
+            messagebox.showinfo("Game Finished!", "Congratulations! There are no more levels to play! Wait for more...")
+            exit()
 
     def loop(self):
         while True:
@@ -232,7 +239,7 @@ if __name__ == '__main__':
     window_size = os.environ.get("WINDOW_SIZE", "1080x720").split("x")
     window = pygame.display.set_mode((int(window_size[0]), int(window_size[1])))
     game_map = []
-    level = 1
+    level = 5
     with open(f'lvl{level}.txt', 'r') as f:
         game_map = [line.rstrip("\n").split("\t") for line in f.readlines()]
     Game(window, game_map, level).loop()

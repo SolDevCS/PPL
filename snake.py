@@ -39,22 +39,6 @@ class Snake:
             for i in range(1, abs(height)):
                 self.body.append((head[0], head[1]+i))
         self.body.append(head)
-        print(self.body)
-    
-    def get_next_step(self) -> dict:
-        return {pygame.K_UP:(self.body[-1][0], self.body[-1][1] - 1), pygame.K_DOWN:(self.body[-1][0], self.body[-1][1] + 1), pygame.K_LEFT:(self.body[-1][0] - 1, self.body[-1][1]), pygame.K_RIGHT:(self.body[-1][0] + 1, self.body[-1][1])}
-    
-    def move_handler(self, event:pygame.event.Event):
-        if event.type == pygame.KEYDOWN:
-            next_step = self.get_next_step()
-            if event.key == pygame.K_UP and next_step[pygame.K_UP] not in self.body and self.map[next_step[pygame.K_UP][1]][next_step[pygame.K_UP][0]] != 'x':
-                self.up()
-            if event.key == pygame.K_DOWN and next_step[pygame.K_DOWN] not in self.body and self.map[next_step[pygame.K_DOWN][1]][next_step[pygame.K_DOWN][0]] != 'x':
-                self.down()
-            if event.key == pygame.K_LEFT and next_step[pygame.K_LEFT] not in self.body and self.map[next_step[pygame.K_LEFT][1]][next_step[pygame.K_LEFT][0]] != 'x':
-                self.left()
-            if event.key == pygame.K_RIGHT and next_step[pygame.K_RIGHT] not in self.body and self.map[next_step[pygame.K_RIGHT][1]][next_step[pygame.K_RIGHT][0]] != 'x':
-                self.right()
     
     def up(self):
         self.body.append((self.body[-1][0], self.body[-1][1] - 1))
