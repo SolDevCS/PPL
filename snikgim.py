@@ -121,3 +121,12 @@ def run_interpreter(script):
                     elif inner_cmd[0] == "EAT":
                         game.eat()
         i += 1
+
+# Sample Run
+script = """
+MOVE RIGHT 3
+MOVE UP 2
+EAT
+MOVE LEFT 1
+"""
+run_interpreter(script)
