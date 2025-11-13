@@ -35,7 +35,7 @@ def load_program(lines):
 def execute_program():
     """Main interpreter loop."""
     global pc
-    pc = 0
+    pc = 0 # program counter
     loop_stack = []
 
     while pc < len(program):
