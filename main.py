@@ -5,15 +5,22 @@ load_dotenv()
 from snake import Snake
 from ui import Terminal, TextButton, ToggleButton
 from tkinter import filedialog, messagebox
+from threading import Thread
+from time import sleep
 import random
 import os
 
 SHELL_EVENT = pygame.USEREVENT + 1
+MOVE_EVENT = pygame.USEREVENT + 2
 
 class Game:
     foods = []
     clock = pygame.time.Clock()
+    program:list[str] = []
+    labels = {}
+    pc:int = 0
     file:str = ""
+    execution_thread:Thread
 
     def __init__(self):
         window_size = os.environ.get("WINDOW_SIZE", "1080x720").split("x")
@@ -36,10 +43,11 @@ class Game:
             TextButton(680, 620, 100, 50, self.load, (0, 255, 0), "Load"),
             TextButton(780, 620, 100, 50, self.save, (0, 255, 0), "Save"),
             TextButton(880, 620, 100, 50, self.save_as, (0, 255, 0), "Save As"),
-            TextButton(980, 620, 100, 50, lambda: print("Pressed"), (0, 255, 0), "Start"),
+            TextButton(980, 620, 100, 50, self.start_simulation, (0, 255, 0), "Start"),
             ToggleButton(680, 670, 400, 50, lambda btn: self.terminal.change_mode(btn.down), (0, 255, 0), ("Script Mode", "Shell Mode"))
         ]
         self.snake = Snake(self.map)
+        self.direction = {'UP':self.snake.up, "LEFT":self.snake.left, "RIGHT":self.snake.right, "DOWN":self.snake.down}
         self.terminal = Terminal(680, 0, 400, 620)
         self.generate_food()
     
@@ -49,6 +57,14 @@ class Game:
             for j in range(len(self.map)):
                 if self.map[j][i] == 'o':
                     self.foods.append((i, j))
+    
+    def start_simulation(self):
+        self.snake = Snake(self.map)
+        self.direction = {'UP':self.snake.up, "LEFT":self.snake.left, "RIGHT":self.snake.right, "DOWN":self.snake.down}
+        self.generate_food()
+        self.load_program(self.terminal.text.split("\n"))
+        self.execution_thread = Thread(target=self.execute_program, daemon=True)
+        self.execution_thread.start()
 
     def loop(self):
         while True:
@@ -58,7 +74,11 @@ class Game:
                     pygame.quit()
                     break
                 elif event.type == SHELL_EVENT:
+                    self.load_program([event.dict.get("instruction")])
+                    self.execute_program()
+                elif event.type == MOVE_EVENT:
                     print(event.dict)
+                    self.direction[event.dict.get("direction")]()
                 for button in self.buttons:
                     button.clicked(event, consumed)
                 self.terminal.handle(event)
@@ -70,6 +90,83 @@ class Game:
                     self.foods.remove(food)
 
             self.draw()
+    
+    def load_program(self, lines):
+        """Reads the script and tokenizes each instruction."""
+        self.program = []
+        self.labels = {}
+        token_counter = 0
+
+        for line in lines:
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue  # skip blanks or comments
+
+            parts = line.split()
+            opcode = parts[0].upper()
+
+            # Label definition (e.g. LOOP:)
+            if opcode.endswith(":"):
+                self.labels[opcode[:-1]] = token_counter
+                continue
+
+            # Regular instructions
+            self.program.append(parts)
+            token_counter += 1
+
+
+    def execute_program(self):
+        """Main interpreter loop."""
+        self.pc = 0
+        loop_stack = []
+        print(self.program)
+        while self.pc < len(self.program):
+            parts = self.program[self.pc]
+            opcode = parts[0].upper()
+
+            # --- MOVE direction steps ---
+            if opcode == "MOVE":
+                if len(parts) != 3:
+                    raise SyntaxError(f"Invalid MOVE syntax at line {self.pc+1}")
+                direction = parts[1].upper()
+                steps = int(parts[2])
+                if (self.terminal.shell_mode):
+                    pygame.time.set_timer(pygame.event.Event(MOVE_EVENT, {'direction':direction}), 500, steps)
+                else:
+                    for _ in range(steps):
+                        self.direction[direction]()
+                        sleep(0.5)
+                self.pc += 1
+
+            # --- EAT ---
+            elif opcode == "EAT":
+                print("[INTERPRETER] Eat fruit")
+                # snake.eat()  <-- connect later
+                self.pc += 1
+
+            # --- LOOP count ---
+            elif opcode == "LOOP":
+                if len(parts) != 2:
+                    raise SyntaxError(f"Invalid LOOP syntax at line {self.pc+1}")
+                count = int(parts[1])
+                loop_stack.append({"start": self.pc + 1, "remaining": count})
+                self.pc += 1
+
+            # --- ENDLOOP ---
+            elif opcode == "ENDLOOP":
+                if not loop_stack:
+                    raise SyntaxError(f"ENDLOOP found without LOOP at line {self.pc+1}")
+                loop = loop_stack[-1]
+                loop["remaining"] -= 1
+                if loop["remaining"] > 0:
+                    self.pc = loop["start"]  # go back inside loop
+                else:
+                    loop_stack.pop()
+                    self.pc += 1
+
+            # --- Unknown opcode ---
+            else:
+                raise SyntaxError(f"Unknown opcode '{opcode}' at line {self.pc+1}")
     
     def load(self):
         print("pressed load")
