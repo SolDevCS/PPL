@@ -1,132 +1,102 @@
 import re
-import sys
-import copy
 
-# Define constants
-DIRECTIONS = {"UP": (-1, 0), "DOWN": (1, 0), "LEFT": (0, -1), "RIGHT": (0, 1)}
+# Snake Game Interpreter (Interpreter only – no snake logic yet)
 
-# Lexer: Tokenizes input lines
-def lexer(line):
-    tokens = re.findall(r"[A-Z]+|\d+", line.upper())
-    return tokens
+program = []
+labels = {}
+pc = 0  # program counter
 
-# 5.1 Lexer
-def tokenize_script(script):
-    lines = script.strip().split('\n')
-    tokenized = []
-    for i, line in enumerate(lines, start=1):
-        if not line.strip():
+
+def load_program(lines):
+    """Reads the script and tokenizes each instruction."""
+    global program, labels
+    program = []
+    labels = {}
+    token_counter = 0
+
+    for line in lines:
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue  # skip blanks or comments
+
+        parts = line.split()
+        opcode = parts[0].upper()
+
+        # Label definition (e.g. LOOP:)
+        if opcode.endswith(":"):
+            labels[opcode[:-1]] = token_counter
             continue
-        tokens = lexer(line)
-        tokenized.append((i, tokens))
-    return tokenized
 
-# Example
-script = """MOVE RIGHT 3
-MOVE UP 2
-EAT
-"""
-tokenize_script(script)
+        # Regular instructions
+        program.append(parts)
+        token_counter += 1
 
-# 5.2 Parser
-def parse(tokens):
-    parsed = []
-    for line_no, parts in tokens:
-        if parts[0] == "MOVE":
-            if len(parts) != 3 or parts[1] not in DIRECTIONS:
-                raise SyntaxError(f"Invalid MOVE syntax at line {line_no}")
-            parsed.append(("MOVE", parts[1], int(parts[2])))
-        elif parts[0] == "EAT":
-            if len(parts) != 1:
-                raise SyntaxError(f"Invalid EAT syntax at line {line_no}")
-            parsed.append(("EAT",))
-        elif parts[0] == "LOOP":
-            if len(parts) != 4:
-                raise SyntaxError(f"Invalid LOOP syntax at line {line_no}")
-            parsed.append(("LOOP", int(parts[1]), int(parts[2]), int(parts[3])))
+
+def execute_program():
+    """Main interpreter loop."""
+    global pc
+    pc = 0
+    loop_stack = []
+
+    while pc < len(program):
+        parts = program[pc]
+        opcode = parts[0].upper()
+
+        # --- MOVE direction steps ---
+        if opcode == "MOVE":
+            if len(parts) != 3:
+                raise SyntaxError(f"Invalid MOVE syntax at line {pc+1}")
+            direction = parts[1].upper()
+            steps = int(parts[2])
+            print(f"[INTERPRETER] Move {direction} by {steps} steps")
+            pc += 1
+
+        # --- EAT ---
+        elif opcode == "EAT":
+            print("[INTERPRETER] Eat fruit")
+            # snake.eat()  <-- connect later
+            pc += 1
+
+        # --- LOOP count ---
+        elif opcode == "LOOP":
+            if len(parts) != 2:
+                raise SyntaxError(f"Invalid LOOP syntax at line {pc+1}")
+            count = int(parts[1])
+            loop_stack.append({"start": pc + 1, "remaining": count})
+            pc += 1
+
+        # --- ENDLOOP ---
+        elif opcode == "ENDLOOP":
+            if not loop_stack:
+                raise SyntaxError(f"ENDLOOP found without LOOP at line {pc+1}")
+            loop = loop_stack[-1]
+            loop["remaining"] -= 1
+            if loop["remaining"] > 0:
+                pc = loop["start"]  # go back inside loop
+            else:
+                loop_stack.pop()
+                pc += 1
+
+        # --- Unknown opcode ---
         else:
-            raise SyntaxError(f"Unknown opcode '{parts[0]}' at line {line_no}")
-    return parsed
+            raise SyntaxError(f"Unknown opcode '{opcode}' at line {pc+1}")
 
-# 5.3 Executor
-class SnakeGame:
-    def __init__(self, width=10, height=10):
-        self.width = width
-        self.height = height
-        self.grid = [['.' for _ in range(width)] for _ in range(height)]
-        self.snake = [(height // 2, width // 2)]
-        self.fruit = (1, 1)
-        self.grid[self.fruit[0]][self.fruit[1]] = 'F'
-        self.update_grid()
 
-    def update_grid(self):
-        for i in range(self.height):
-            for j in range(self.width):
-                if (i, j) == self.fruit:
-                    self.grid[i][j] = 'F'
-                elif (i, j) in self.snake:
-                    self.grid[i][j] = 'S'
-                else:
-                    self.grid[i][j] = '.'
+# ======================
+# Example Input Script
+# ======================
 
-    def display(self):
-        for row in self.grid:
-            print(' '.join(row))
-        print()
+program_lines = [
+    "MOVE RIGHT 3",
+    "MOVE UP 2",
+    "EAT",
+    "LOOP 2",
+    "MOVE LEFT 1",
+    "MOVE DOWN 1",
+    "ENDLOOP",
+    "EAT"
+]
 
-    def move(self, direction, steps):
-        dx, dy = DIRECTIONS[direction]
-        for _ in range(steps):
-            head_x, head_y = self.snake[0]
-            new_head = (head_x + dx, head_y + dy)
-            if not (0 <= new_head[0] < self.height and 0 <= new_head[1] < self.width):
-                raise RuntimeError("Snake hit the wall!")
-            if new_head in self.snake:
-                raise RuntimeError("Snake bit itself!")
-            self.snake.insert(0, new_head)
-            self.snake.pop()
-            self.update_grid()
-            self.display()
-
-    def eat(self):
-        if self.snake[0] == self.fruit:
-            self.snake.append(self.snake[-1])  # grow
-            print("Fruit eaten! Snake grew.")
-            self.fruit = (self.height - 2, self.width - 2)
-            self.update_grid()
-            self.display()
-        else:
-            raise RuntimeError("No fruit to eat here!")
-
-# 5.4 Interpreter
-def run_interpreter(script):
-    tokens = tokenize_script(script)
-    parsed = parse(tokens)
-    game = SnakeGame()
-
-    i = 0
-    while i < len(parsed):
-        cmd = parsed[i]
-        if cmd[0] == "MOVE":
-            game.move(cmd[1], cmd[2])
-        elif cmd[0] == "EAT":
-            game.eat()
-        elif cmd[0] == "LOOP":
-            start, end, count = cmd[1], cmd[2], cmd[3]
-            for _ in range(count):
-                for j in range(start - 1, end):
-                    inner_cmd = parsed[j]
-                    if inner_cmd[0] == "MOVE":
-                        game.move(inner_cmd[1], inner_cmd[2])
-                    elif inner_cmd[0] == "EAT":
-                        game.eat()
-        i += 1
-
-# Sample Run
-script = """
-MOVE RIGHT 3
-MOVE UP 2
-EAT
-MOVE LEFT 1
-"""
-run_interpreter(script)
+# Load and run
+load_program(program_lines)
+execute_program()
