@@ -1,1 +1,8 @@
 venv/
+/assets
+/include
+/Lib
+/Scripts
+
+.env
+pyvenv.cfg
