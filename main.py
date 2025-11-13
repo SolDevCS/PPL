@@ -22,23 +22,11 @@ class Game:
     file:str = ""
     execution_thread:Thread
 
-    def __init__(self):
-        window_size = os.environ.get("WINDOW_SIZE", "1080x720").split("x")
-        self.window = pygame.display.set_mode((int(window_size[0]), int(window_size[1])))
+    def __init__(self, window:pygame.Surface, map:list[list[str]], level):
+        self.window = window
+        self.level = level
         self.cell_size = int(os.environ.get("CELL_SIZE", "50"))
-        self.grid = (10, 10)
-        self.map = [
-            ["-","-","-","-","-","-","-","-","-","-"],
-            ["-","x","-","-","-","-","-","-","-","o"],
-            ["-","x","-","-","-","-","-","-","-","-"],
-            ["-","x","x","-","-","-","-","-","-","-"],
-            ["-","-","-","-","-","-","-","-","-","-"],
-            ["-","-","-","-","-","-","x","x","-","-"],
-            ["-","-","-","-","-","-","x","x","-","-"],
-            ["-","-","-","-","-","-","x","x","-","-"],
-            ["-","-","-","-","-","-","-","-","-","-"],
-            ["-","-","-","-","-","-","-","-","-","o"]
-        ]
+        self.map = map
         self.buttons = [
             TextButton(680, 620, 100, 50, self.load, (0, 255, 0), "Load"),
             TextButton(780, 620, 100, 50, self.save, (0, 255, 0), "Save"),
@@ -46,7 +34,15 @@ class Game:
             TextButton(980, 620, 100, 50, self.start_simulation, (0, 255, 0), "Start"),
             ToggleButton(680, 670, 400, 50, lambda btn: self.terminal.change_mode(btn.down), (0, 255, 0), ("Script Mode", "Shell Mode"))
         ]
-        self.snake = Snake(self.map)
+        head = (0, 2)
+        tail = (0, 0)
+        for y in range(len(self.map)):
+            if "h" in self.map[y]:
+                head = (self.map[y].index("h"), y)
+            if "t" in self.map[y]:
+                tail = (self.map[y].index("t"), y)
+        print(tail, head)
+        self.snake = Snake(self.map, tail, head)
         self.direction = {'UP':self.snake.up, "LEFT":self.snake.left, "RIGHT":self.snake.right, "DOWN":self.snake.down}
         self.terminal = Terminal(680, 0, 400, 620)
         self.generate_food()
@@ -55,16 +51,20 @@ class Game:
         self.foods.clear()
         for i in range(len(self.map[0])):
             for j in range(len(self.map)):
-                if self.map[j][i] == 'o':
+                if self.map[j][i] == 'O':
                     self.foods.append((i, j))
     
     def start_simulation(self):
-        self.snake = Snake(self.map)
-        self.direction = {'UP':self.snake.up, "LEFT":self.snake.left, "RIGHT":self.snake.right, "DOWN":self.snake.down}
         self.generate_food()
         self.load_program(self.terminal.text.split("\n"))
         self.execution_thread = Thread(target=self.execute_program, daemon=True)
         self.execution_thread.start()
+    
+    def next_level(self):
+        level = self.level + 1
+        with open(f'lvl{level}.txt', 'r') as f:
+            game_map = [line.rstrip("\n").split("\t") for line in f.readlines()]
+            Game(self.window, game_map, level).loop()
 
     def loop(self):
         while True:
@@ -82,12 +82,9 @@ class Game:
                 for button in self.buttons:
                     button.clicked(event, consumed)
                 self.terminal.handle(event)
-                self.snake.move_handler(event)
                 
-            for food in self.foods:
-                if food == self.snake.body[-1]:
-                    self.snake.body.insert(0, (self.snake.body[0][0], self.snake.body[0][1]-1))
-                    self.foods.remove(food)
+            if len(self.foods) == 0:
+                self.next_level()
 
             self.draw()
     
@@ -140,8 +137,7 @@ class Game:
 
             # --- EAT ---
             elif opcode == "EAT":
-                print("[INTERPRETER] Eat fruit")
-                # snake.eat()  <-- connect later
+                self.snake.eat(self.foods)
                 self.pc += 1
 
             # --- LOOP count ---
@@ -217,8 +213,8 @@ class Game:
     
     def draw(self):
         self.window.fill((255, 255, 255))
-        for i in range(self.grid[0]):
-            for j in range(self.grid[1]):
+        for i in range(len(self.map[0])):
+            for j in range(len(self.map)):
                 if self.map[j][i] == 'x':
                     pygame.draw.rect(self.window, (255, 0, 0), (i*self.cell_size, j*self.cell_size, self.cell_size, self.cell_size), 2)
                 else:
@@ -233,4 +229,10 @@ class Game:
 
 
 if __name__ == '__main__':
-    Game().loop()
+    window_size = os.environ.get("WINDOW_SIZE", "1080x720").split("x")
+    window = pygame.display.set_mode((int(window_size[0]), int(window_size[1])))
+    game_map = []
+    level = 1
+    with open(f'lvl{level}.txt', 'r') as f:
+        game_map = [line.rstrip("\n").split("\t") for line in f.readlines()]
+    Game(window, game_map, level).loop()

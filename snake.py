@@ -24,15 +24,22 @@ class Snake:
         self.map = map
         self.cell_size = int(os.environ.get("CELL_SIZE", "50"))
         self.body = [tail]
-        width = abs(head[0]-tail[0])-1
-        height = abs(head[1]-tail[1])-1
-        if (width>0):
-            for i in range(1, width+1):
+        width = head[0]-tail[0]
+        height = head[1]-tail[1]
+        if (width<0):
+            for i in range(1, abs(width)):
+                self.body.append((head[0]+i, head[1]))
+        elif (width>0):
+            for i in range(1, abs(width)):
                 self.body.append((tail[0]+i, tail[1]))
-        else:
-            for i in range(1, height+1):
+        elif (height > 0):
+            for i in range(1, abs(height)):
                 self.body.append((tail[0], tail[1]+i))
+        elif (height < 0):
+            for i in range(1, abs(height)):
+                self.body.append((head[0], head[1]+i))
         self.body.append(head)
+        print(self.body)
     
     def get_next_step(self) -> dict:
         return {pygame.K_UP:(self.body[-1][0], self.body[-1][1] - 1), pygame.K_DOWN:(self.body[-1][0], self.body[-1][1] + 1), pygame.K_LEFT:(self.body[-1][0] - 1, self.body[-1][1]), pygame.K_RIGHT:(self.body[-1][0] + 1, self.body[-1][1])}
@@ -65,8 +72,12 @@ class Snake:
         self.body.append((self.body[-1][0] + 1, self.body[-1][1]))
         self.body.pop(0)
     
-    def eat(self):
-        pass
+    def eat(self, foods:list[tuple[int, int]]):
+        if self.body[-1] in foods:
+            self.body.insert(0, (self.body[0][0], self.body[0][1]-1))
+            foods.remove(self.body[-1])
+            return True
+        return False
     
     def sprite_for_cell(self, body:int):
         _prev, _body, _next = self.body[body-1], self.body[body], self.body[body+1]
