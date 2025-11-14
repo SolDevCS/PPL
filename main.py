@@ -10,10 +10,13 @@ from time import sleep
 import random
 import os
 
+CELL_SIZE = int(os.environ.get("CELL_SIZE", "50"))
 SHELL_EVENT = pygame.USEREVENT + 1
 MOVE_EVENT = pygame.USEREVENT + 2
 FONT = pygame.font.Font(None, 25)
-BLOCK = pygame.transform.scale(pygame.image.load("./assets/block.png"), (int(os.environ.get("CELL_SIZE", "50")), int(os.environ.get("CELL_SIZE", "50"))))
+BLOCK = pygame.transform.scale(pygame.image.load("./assets/block.png"), (CELL_SIZE, CELL_SIZE))
+FOOD = pygame.transform.scale(pygame.image.load("./assets/food.png"), (CELL_SIZE, CELL_SIZE))
+GROUND = pygame.transform.scale(pygame.image.load("./assets/ground.jpg"), (CELL_SIZE, CELL_SIZE))
 
 class Game:
     foods = []
@@ -32,11 +35,11 @@ class Game:
         self.cell_size = int(os.environ.get("CELL_SIZE", "50"))
         self.map = map
         self.buttons = {
-            "Load":TextButton(680, 620, 100, 50, self.load, (0, 255, 0), "Load"),
-            "Save":TextButton(780, 620, 100, 50, self.save, (0, 255, 0), "Save"),
-            "Save As":TextButton(880, 620, 100, 50, self.save_as, (0, 255, 0), "Save As"),
-            "Start":TextButton(980, 620, 100, 50, self.start_simulation, (0, 255, 0), "Start"),
-            "Mode":ToggleButton(680, 670, 400, 50, lambda btn: self.terminal.change_mode(btn.down), (0, 255, 0), ("Script Mode", "Shell Mode"))
+            "Load":TextButton(680, 620, 100, 50, self.load, (196, 150, 109), "Load"),
+            "Save":TextButton(780, 620, 100, 50, self.save, (196, 150, 109), "Save"),
+            "Save As":TextButton(880, 620, 100, 50, self.save_as, (196, 150, 109), "Save As"),
+            "Start":TextButton(980, 620, 100, 50, self.start_simulation, (196, 150, 109), "Start"),
+            "Mode":ToggleButton(680, 670, 400, 50, lambda btn: self.terminal.change_mode(btn.down), (196, 150, 109), ("Script Mode", "Shell Mode"))
         }
         self.generate_snake()
         self.terminal = Terminal(680, 0, 400, 620)
@@ -234,6 +237,8 @@ class Game:
                 read_data = f.read()
             self.file = asked_file
             pygame.display.set_caption(asked_file)
+            self.terminal.change_mode(False)
+            self.buttons["Mode"].down = False
         except FileNotFoundError as e:
             print(e)
             return
@@ -269,15 +274,15 @@ class Game:
         self.save()
     
     def draw(self):
-        self.window.fill((255, 255, 255))
+        self.window.fill((50, 50, 50))
         for i in range(len(self.map[0])):
             for j in range(len(self.map)):
                 if self.map[j][i] == 'x':
                     self.window.blit(BLOCK, (i*self.cell_size, j*self.cell_size))
                 else:
-                    pygame.draw.rect(self.window, (0, 0, 0), (i*self.cell_size, j*self.cell_size, self.cell_size, self.cell_size), 2)
+                    self.window.blit(GROUND, (i*self.cell_size, j*self.cell_size))
         for food in self.foods:
-            pygame.draw.rect(self.window, (255, 0, 0), (food[0]*self.cell_size, food[1]*self.cell_size, self.cell_size, self.cell_size))
+            self.window.blit(FOOD, (food[0]*self.cell_size, food[1]*self.cell_size))
         self.snake.draw(self.window)
 
 

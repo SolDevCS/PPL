@@ -47,7 +47,7 @@ class Terminal:
             self.text_bottom = self.rect.top + 10
             for i, line in enumerate(self.history):
                 text = FONT.render(line, False, (0, 0, 0))
-                rect = text.get_rect(topleft=(self.rect.left + 10, self.y_offset + (i*text.get_height()) + self.rect.top + 10))
+                rect = text.get_rect(topleft=(self.rect.left + 10, self.y_offset + (i*(text.get_height()+10)) + self.rect.top + 10))
                 window.blit(text, rect)
                 if i == len(self.history)-1:
                     self.text_bottom = rect.bottom
@@ -58,7 +58,7 @@ class Terminal:
         else:
             for i, line in enumerate(self.text.split("\n")):
                 text = FONT.render(f"{i+1}: {line}", False, (0, 0, 0))
-                rect = text.get_rect(topleft=(self.rect.left + 10, self.y_offset + (i*text.get_height()) + self.rect.top + 10))
+                rect = text.get_rect(topleft=(self.rect.left + 10, self.y_offset + (i*(text.get_height()+10)) + self.rect.top + 10))
                 window.blit(text, rect)
                 if i == len(self.text.split("\n"))-1:
                     self.text_bottom = rect.bottom
@@ -102,30 +102,32 @@ class TextButton(ButtonBehavior):
         self.content = content
     
     def get_text(self) -> tuple[pygame.Surface, pygame.Rect]:
-        text = FONT.render(self.content, True, (0, 0, 0))
+        text = FONT.render(self.content, True, (100, 48, 39))
         return (text, text.get_rect(center=self.rect.center))
     
     def draw(self, window:pygame.Surface) -> None:
         pygame.draw.rect(window, self.background_color, self.rect)
-        if (not self.clickable):
-            window.blit(self.surface, self.rect)
+        pygame.draw.rect(window, (168, 169, 174), self.rect, 2)
+        
         if (self.content):
             text, rect = self.get_text()
             window.blit(text, rect)
+        if (not self.clickable):
+            window.blit(self.surface, self.rect)
 
 
 class ToggleButton(ButtonBehavior):
     def __init__(self, left:float, top:float, width:float, height:float, on_toggle:Callable, background_color:tuple[int, int, int], content:tuple[str, str]):
         super().__init__(left, top, width, height, None)
         self.surface = pygame.Surface((width, height), pygame.SRCALPHA)
-        self.surface.fill((0, 0, 0, 80))
+        self.surface.fill((0, 0, 0, 100))
         self.background_color = background_color
         self.on_toggle = on_toggle
         self.content = content
         self.down = False
     
     def get_text(self) -> tuple[pygame.Surface, pygame.Rect]:
-        text = FONT.render(self.content[0], True, (0, 0, 0)) if not self.down else FONT.render(self.content[1], True, (0, 0, 0))
+        text = FONT.render(self.content[0], True, (100, 48, 39)) if not self.down else FONT.render(self.content[1], True, (0, 0, 0))
         return (text, text.get_rect(center=self.rect.center))
     
     def clicked(self, event:pygame.event.Event, consumed:list) -> bool:
@@ -138,6 +140,9 @@ class ToggleButton(ButtonBehavior):
     
     def draw(self, window:pygame.Surface) -> None:
         pygame.draw.rect(window, self.background_color, self.rect)
+        pygame.draw.rect(window, (168, 169, 174), self.rect, 2)
         if (self.content):
             text, rect = self.get_text()
             window.blit(text, rect)
+        if (not self.clickable):
+            window.blit(self.surface, self.rect)
