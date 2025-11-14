@@ -43,22 +43,22 @@ class Snake:
     def up(self):
         self.body.append((self.body[-1][0], self.body[-1][1] - 1))
         self.body.pop(0)
-        return self.map[self.body[-1][1]][self.body[-1][0]].upper() != 'X' or self.body.count(self.body[-1]) > 1
+        return self.map[self.body[-1][1]][self.body[-1][0]].upper() != 'X' and self.body.count(self.body[-1]) == 1
     
     def down(self):
         self.body.append((self.body[-1][0], self.body[-1][1] + 1))
         self.body.pop(0)
-        return self.map[self.body[-1][1]][self.body[-1][0]].upper() != 'X' or self.body.count(self.body[-1]) > 1
+        return self.map[self.body[-1][1]][self.body[-1][0]].upper() != 'X' and self.body.count(self.body[-1]) == 1
     
     def left(self):
         self.body.append((self.body[-1][0] - 1, self.body[-1][1]))
         self.body.pop(0)
-        return self.map[self.body[-1][1]][self.body[-1][0]].upper() != 'X' or self.body.count(self.body[-1]) > 1
+        return self.map[self.body[-1][1]][self.body[-1][0]].upper() != 'X' and self.body.count(self.body[-1]) == 1
     
     def right(self):
         self.body.append((self.body[-1][0] + 1, self.body[-1][1]))
         self.body.pop(0)
-        return self.map[self.body[-1][1]][self.body[-1][0]].upper() != 'X' or self.body.count(self.body[-1]) > 1
+        return self.map[self.body[-1][1]][self.body[-1][0]].upper() != 'X' and self.body.count(self.body[-1]) == 1
     
     def eat(self, foods:list[tuple[int, int]]):
         if self.body[-1] in foods:
