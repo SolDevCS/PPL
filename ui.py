@@ -25,7 +25,6 @@ class Terminal:
         if (event.type == pygame.MOUSEBUTTONDOWN):
             self.focused = self.rect.collidepoint(event.pos)
         elif (event.type == pygame.MOUSEWHEEL and self.focused):
-            print(self.y_offset, self.text_bottom, event.y)
             if (event.y > 0 and self.y_offset < 0 or event.y < 0 and self.text_bottom > self.rect.height - 10):
                 self.y_offset += (event.y * 10)
         if (event.type == pygame.KEYDOWN and self.focused):
@@ -39,7 +38,7 @@ class Terminal:
                     return
                 else:
                     self.text += "\n"
-            else:
+            elif (event.key != pygame.K_BACKSPACE):
                 self.text += event.unicode
     
     def draw(self, window:pygame.Surface):
