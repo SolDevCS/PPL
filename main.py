@@ -12,6 +12,8 @@ import os
 
 SHELL_EVENT = pygame.USEREVENT + 1
 MOVE_EVENT = pygame.USEREVENT + 2
+FONT = pygame.font.Font(None, 25)
+BLOCK = pygame.transform.scale(pygame.image.load("./assets/block.png"), (int(os.environ.get("CELL_SIZE", "50")), int(os.environ.get("CELL_SIZE", "50"))))
 
 class Game:
     foods = []
@@ -21,19 +23,21 @@ class Game:
     pc:int = 0
     file:str = ""
     execution_thread:Thread
+    shell_lines = []
+    running = False
 
     def __init__(self, window:pygame.Surface, map:list[list[str]], level):
         self.window = window
         self.level = level
         self.cell_size = int(os.environ.get("CELL_SIZE", "50"))
         self.map = map
-        self.buttons = [
-            TextButton(680, 620, 100, 50, self.load, (0, 255, 0), "Load"),
-            TextButton(780, 620, 100, 50, self.save, (0, 255, 0), "Save"),
-            TextButton(880, 620, 100, 50, self.save_as, (0, 255, 0), "Save As"),
-            TextButton(980, 620, 100, 50, self.start_simulation, (0, 255, 0), "Start"),
-            ToggleButton(680, 670, 400, 50, lambda btn: self.terminal.change_mode(btn.down), (0, 255, 0), ("Script Mode", "Shell Mode"))
-        ]
+        self.buttons = {
+            "Load":TextButton(680, 620, 100, 50, self.load, (0, 255, 0), "Load"),
+            "Save":TextButton(780, 620, 100, 50, self.save, (0, 255, 0), "Save"),
+            "Save As":TextButton(880, 620, 100, 50, self.save_as, (0, 255, 0), "Save As"),
+            "Start":TextButton(980, 620, 100, 50, self.start_simulation, (0, 255, 0), "Start"),
+            "Mode":ToggleButton(680, 670, 400, 50, lambda btn: self.terminal.change_mode(btn.down), (0, 255, 0), ("Script Mode", "Shell Mode"))
+        }
         self.generate_snake()
         self.terminal = Terminal(680, 0, 400, 620)
         self.generate_food()
@@ -60,8 +64,20 @@ class Game:
         self.generate_snake()
         self.generate_food()
         self.load_program(self.terminal.text.split("\n"))
-        self.execution_thread = Thread(target=self.execute_program, daemon=True)
+        self.execution_thread = Thread(target=self.run_time_thread, daemon=True)
         self.execution_thread.start()
+    
+    def run_time_thread(self):
+        try:
+            self.execute_program()
+        except SyntaxError as e:
+            messagebox.showerror("Syntax Error occured!", e.msg)
+            self.generate_snake()
+            self.generate_food()
+        except RuntimeError as e:
+            messagebox.showerror("Runtime Error occured!", e.args[0])
+            self.generate_snake()
+            self.generate_food()
     
     def next_level(self):
         level = self.level + 1
@@ -81,17 +97,48 @@ class Game:
                     pygame.quit()
                     break
                 elif event.type == SHELL_EVENT:
-                    self.load_program([event.dict.get("instruction")])
-                    self.execute_program()
+                    self.error = ""
+                    instruction = event.dict.get("instruction")
+                    if 'LOOP' in instruction:
+                        self.shell_lines.append(instruction)
+                        break
+                    if (self.shell_lines):
+                        self.shell_lines.append(instruction)
+                    elif ('ENDLOOP' in instruction):
+                        self.shell_lines.append(instruction)
+                        try:
+                            self.load_program(self.shell_lines)
+                            self.shell_lines.clear()
+                            self.execute_program()
+                        except SyntaxError as e:
+                            messagebox.showerror("Syntax Error occured!", e.msg)
+                    else:
+                        try:
+                            self.load_program([event.dict.get("instruction")])
+                            self.execute_program()
+                        except SyntaxError as e:
+                            messagebox.showerror("Syntax Error occured!", e.msg)
                 elif event.type == MOVE_EVENT:
-                    print(event.dict)
-                    self.direction[event.dict.get("direction")]()
-                for button in self.buttons:
+                    steps = event.dict.get('steps')-1
+                    if (not self.direction[event.dict.get("direction")]()):
+                        messagebox.showerror("Runtime Error occured!", f"You cannot move over an obstacle {self.snake.body[-1]}")
+                        self.generate_snake()
+                        self.generate_food()
+                        break
+                    if steps > 0:
+                        pygame.time.set_timer(pygame.event.Event(MOVE_EVENT, {'direction':event.dict.get("direction"), 'steps':steps}), 500, 1)
+                for button in self.buttons.values():
                     button.clicked(event, consumed)
                 self.terminal.handle(event)
                 
             if len(self.foods) == 0:
                 self.next_level()
+            
+            self.buttons["Start"].clickable = not self.terminal.shell_mode and not self.running
+            self.buttons['Mode'].clickable = not self.running
+            self.buttons['Load'].clickable = not self.running
+            self.buttons['Save As'].clickable = not self.terminal.shell_mode and not self.running
+            self.buttons['Save'].clickable = not self.terminal.shell_mode and not self.running
 
             self.draw()
     
@@ -123,7 +170,7 @@ class Game:
         """Main interpreter loop."""
         self.pc = 0
         loop_stack = []
-        print(self.program)
+        self.running = True
         while self.pc < len(self.program):
             parts = self.program[self.pc]
             opcode = parts[0].upper()
@@ -135,16 +182,18 @@ class Game:
                 direction = parts[1].upper()
                 steps = int(parts[2])
                 if (self.terminal.shell_mode):
-                    pygame.time.set_timer(pygame.event.Event(MOVE_EVENT, {'direction':direction}), 500, steps)
+                    pygame.time.set_timer(pygame.event.Event(MOVE_EVENT, {'direction':direction, 'steps':steps}), 500, 1)
                 else:
                     for _ in range(steps):
-                        self.direction[direction]()
+                        if (not self.direction[direction]()):
+                            raise RuntimeError(f"You cannot move over an obstacle {self.snake.body[-1]}")
                         sleep(0.5)
                 self.pc += 1
 
             # --- EAT ---
             elif opcode == "EAT":
-                self.snake.eat(self.foods)
+                if (not self.snake.eat(self.foods)):
+                    raise RuntimeError(f"There's no food to eat at position {self.snake.body[-1]}")
                 self.pc += 1
 
             # --- LOOP count ---
@@ -170,6 +219,7 @@ class Game:
             # --- Unknown opcode ---
             else:
                 raise SyntaxError(f"Unknown opcode '{opcode}' at line {self.pc+1}")
+        self.running = False
     
     def load(self):
         print("pressed load")
@@ -223,14 +273,16 @@ class Game:
         for i in range(len(self.map[0])):
             for j in range(len(self.map)):
                 if self.map[j][i] == 'x':
-                    pygame.draw.rect(self.window, (255, 0, 0), (i*self.cell_size, j*self.cell_size, self.cell_size, self.cell_size), 2)
+                    self.window.blit(BLOCK, (i*self.cell_size, j*self.cell_size))
                 else:
                     pygame.draw.rect(self.window, (0, 0, 0), (i*self.cell_size, j*self.cell_size, self.cell_size, self.cell_size), 2)
         for food in self.foods:
             pygame.draw.rect(self.window, (255, 0, 0), (food[0]*self.cell_size, food[1]*self.cell_size, self.cell_size, self.cell_size))
         self.snake.draw(self.window)
+
+
         self.terminal.draw(self.window)
-        for button in self.buttons:
+        for button in self.buttons.values():
             button.draw(self.window)
         pygame.display.update()
 
@@ -239,7 +291,7 @@ if __name__ == '__main__':
     window_size = os.environ.get("WINDOW_SIZE", "1080x720").split("x")
     window = pygame.display.set_mode((int(window_size[0]), int(window_size[1])))
     game_map = []
-    level = 5
+    level = 1
     with open(f'lvl{level}.txt', 'r') as f:
         game_map = [line.rstrip("\n").split("\t") for line in f.readlines()]
     Game(window, game_map, level).loop()

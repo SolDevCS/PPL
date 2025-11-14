@@ -18,7 +18,7 @@ DOWN_HEAD = pygame.transform.rotozoom(UP_HEAD, 180, 1.0)
 RIGHT_HEAD = pygame.transform.rotozoom(UP_HEAD, 270, 1.0)
 
 class Snake:
-    def __init__(self,  map:list, tail:tuple[int, int]=(0, 0), head:tuple[int, int]=(0, 2)):
+    def __init__(self,  map:list[list[str]], tail:tuple[int, int]=(0, 0), head:tuple[int, int]=(0, 2)):
         if (head[0] != tail[0] and head[1] != tail[1]):
             raise ValueError("Head and Tail has to be in the same axis.")
         self.map = map
@@ -43,18 +43,22 @@ class Snake:
     def up(self):
         self.body.append((self.body[-1][0], self.body[-1][1] - 1))
         self.body.pop(0)
+        return self.map[self.body[-1][1]][self.body[-1][0]].upper() != 'X'
     
     def down(self):
         self.body.append((self.body[-1][0], self.body[-1][1] + 1))
         self.body.pop(0)
+        return self.map[self.body[-1][1]][self.body[-1][0]].upper() != 'X'
     
     def left(self):
         self.body.append((self.body[-1][0] - 1, self.body[-1][1]))
         self.body.pop(0)
+        return self.map[self.body[-1][1]][self.body[-1][0]].upper() != 'X'
     
     def right(self):
         self.body.append((self.body[-1][0] + 1, self.body[-1][1]))
         self.body.pop(0)
+        return self.map[self.body[-1][1]][self.body[-1][0]].upper() != 'X'
     
     def eat(self, foods:list[tuple[int, int]]):
         if self.body[-1] in foods:
